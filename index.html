@@ -1,0 +1,40 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sheet Search</title>
+<style>
+:root{--bg:#fff;--fg:#1a1a1a;--mut:#666;--line:#ddd;--hi:#fff3b0}
+@media (prefers-color-scheme:dark){:root{--bg:#161616;--fg:#eee;--mut:#999;--line:#333;--hi:#5a4a00}}
+body{margin:0;padding:12px;background:var(--bg);color:var(--fg);font:15px system-ui,sans-serif}
+input,select{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px}
+#q{width:100%;box-sizing:border-box;font-size:17px}
+.row{display:flex;gap:8px;margin:8px 0;align-items:center;flex-wrap:wrap}
+.w{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{border:1px solid var(--line);padding:4px 6px;white-space:nowrap;text-align:left}
+td.n{text-align:right}mark{background:var(--hi);color:inherit}.mut{color:var(--mut);font-size:13px}
+</style></head><body>
+<h2 style="margin:0 0 8px">Sheet Search</h2>
+<input id="q" placeholder="Search name, mobile, amount, voucher, NCM ID..." autofocus>
+<div class="row"><select id="sh"><option value="">All months</option></select><span class="mut" id="cnt"></span></div>
+<div class="w"><table><thead><tr><th>Date</th><th>Vou</th><th>Narration</th><th>Party</th><th>Mobile</th><th>Sale</th><th>Bill</th><th>Cash</th><th>Fonepay</th><th>Online</th><th>Card</th><th>Adjust</th><th>Balance</th></tr></thead><tbody id="tb"></tbody></table></div>
+<p class="mut">Data comes from data.csv (full sales register, all rows). Check important amounts against the paper sheets.</p>
+<script>
+let rows=[];const $=id=>document.getElementById(id);
+function csv(t){const out=[];let r=[],c="",q=false;for(let i=0;i<t.length;i++){const ch=t[i];
+ if(q){if(ch=='"'){if(t[i+1]=='"'){c+='"';i++}else q=false}else c+=ch}
+ else if(ch=='"')q=true;else if(ch==','){r.push(c);c=""}else if(ch=='\n'){r.push(c.replace(/\r$/,""));out.push(r);r=[];c=""}else c+=ch}
+ if(c||r.length){r.push(c);out.push(r)}return out}
+fetch("data.csv").then(r=>r.text()).then(t=>{
+  rows=csv(t).slice(1).filter(c=>c.length>5).map(c=>({s:c[0],d:c[1],v:c[2],n:c[3],p:c[4],m:c[5],a:c.slice(6,14)}));
+  const ss=[...new Set(rows.map(r=>r.s))].sort();
+  $("sh").innerHTML='<option value="">All months</option>'+ss.map(s=>`<option>${s}</option>`).join("");
+  render();
+}).catch(()=>{$("cnt").textContent="Could not load data.csv (use Live Server or GitHub Pages, not double-click)"});
+function render(){
+  const q=$("q").value.trim().toLowerCase(),sh=$("sh").value,qn=q.replace(/[,\s]/g,"");
+  const f=rows.filter(r=>(!sh||r.s==sh)&&(!q||[r.v,r.n,r.p,r.m,...r.a].join("|").toLowerCase().includes(q)||(qn&&r.a.some(x=>x&&x==qn))));
+  $("cnt").textContent=f.length+" match(es) of "+rows.length+" rows";
+  const hl=t=>{t=t||"";if(!q)return t;const i=t.toLowerCase().indexOf(q);return i<0?t:t.slice(0,i)+"<mark>"+t.slice(i,i+q.length)+"</mark>"+t.slice(i+q.length)};
+  $("tb").innerHTML=f.slice(0,500).map(r=>`<tr><td>${r.d}</td><td>${hl(r.v)}</td><td>${hl(r.n)}</td><td>${hl(r.p)}</td><td>${hl(r.m)}</td>${r.a.map(x=>`<td class="n">${hl(x)}</td>`).join("")}</tr>`).join("");
+}
+$("q").oninput=render;$("sh").onchange=render;
+</script></body></html>
